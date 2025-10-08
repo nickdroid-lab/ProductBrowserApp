@@ -112,16 +112,6 @@ fun ProductList(
     }
 }
 
-@Composable
-fun ExposedDropdownMenu(
-    expanded: Boolean,
-    onDismissRequest: () -> Unit,
-    content: @Composable () -> Unit
-) {
-    TODO("Not yet implemented")
-}
-
-
 
 @Composable
 fun ProductRow(p: Product, onProductClick: (Product) -> Unit) {
