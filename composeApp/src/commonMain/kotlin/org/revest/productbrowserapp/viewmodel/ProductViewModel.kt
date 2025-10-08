@@ -1,14 +1,19 @@
-package com.revest.shared.viewmodel
+package org.revest.productbrowserapp.viewmodel
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.revest.productbrowserapp.models.Category
 import org.revest.productbrowserapp.models.Product
-import org.revest.productbrowserapp.repository.ProductRepository
+import org.revest.productbrowserapp.usecase.GetCategoriesUseCase
+import org.revest.productbrowserapp.usecase.GetProductByCategoryUseCase
+import org.revest.productbrowserapp.usecase.GetProductsUseCase
+import org.revest.productbrowserapp.usecase.SearchProductsUseCase
 
 data class ProductUiState(
     val isLoading: Boolean = false,
@@ -21,12 +26,18 @@ data class ProductUiState(
 )
 
 class ProductViewModel(
-    private val repo: ProductRepository,
+    private val getProductsUseCase: GetProductsUseCase,
+    private val searchProductsUseCase: SearchProductsUseCase,
+    private val getCategoriesUseCase: GetCategoriesUseCase,
+    private val getProductsByCategoryUseCase: GetProductByCategoryUseCase,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default)
 ) {
 
     private val _state = MutableStateFlow(ProductUiState(isLoading = true))
     val state: StateFlow<ProductUiState> = _state
+
+    private var searchJob: Job? = null
+
 
     init {
         loadCategories()
@@ -38,8 +49,8 @@ class ProductViewModel(
         scope.launch {
             try {
                 val response = when {
-                    !category.isNullOrBlank() -> repo.getProductsByCategory(category)
-                    else -> repo.getProducts(20)
+                    !category.isNullOrBlank() -> getProductsByCategoryUseCase(category)
+                    else -> getProductsUseCase()
                 }
                 _state.update { it.copy(isLoading = false, products = response.products, error = null) }
             } catch (e: Exception) {
@@ -48,12 +59,26 @@ class ProductViewModel(
         }
     }
 
+    fun onSearchInput(query: String) {
+        _state.update { it.copy(searchQuery = query) }
+
+        // Cancel any previous search that hasn’t run yet
+        searchJob?.cancel()
+
+        searchJob = scope.launch {
+            delay(500) // debounce delay (0.5s)
+            if (query.length >= 3 || query.isBlank()) {
+                search(query)
+            }
+        }
+    }
+
     fun search(query: String) {
         _state.update { it.copy(searchQuery = query, isLoading = true) }
         scope.launch {
             try {
-                val response = if (query.isBlank()) repo.getProducts(20)
-                else repo.searchProducts(query)
+                val response = if (query.isBlank()) getProductsUseCase()
+                else searchProductsUseCase(query)
                 _state.update { it.copy(isLoading = false, products = response.products, error = null) }
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false, error = e.message) }
@@ -72,7 +97,7 @@ class ProductViewModel(
     fun loadCategories() {
         scope.launch {
             try {
-                val result = repo.getCategories()
+                val result = getCategoriesUseCase()
                 _state.update { it.copy(categories = result) }
             } catch (e: Exception) {
                 // Ignore silently if category fetch fails

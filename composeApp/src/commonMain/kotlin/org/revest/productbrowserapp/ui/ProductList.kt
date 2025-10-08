@@ -30,9 +30,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.revest.shared.viewmodel.ProductUiState
 import org.revest.productbrowserapp.NetworkImage
 import org.revest.productbrowserapp.models.Product
+import org.revest.productbrowserapp.viewmodel.ProductUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
